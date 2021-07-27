@@ -1,8 +1,10 @@
 import { Resolver, Query, Arg, Root, FieldResolver } from 'type-graphql'
+import { Service } from 'typedi'
 import { AssetEntity } from 'orm'
 import { Asset, AssetNews } from 'graphql/schema'
 import { AssetService } from 'services'
 
+@Service()
 @Resolver((of) => Asset)
 export class AssetResolver {
   constructor(private readonly assetService: AssetService) {}

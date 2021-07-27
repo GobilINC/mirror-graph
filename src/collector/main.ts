@@ -1,6 +1,5 @@
 import 'reflect-metadata'
 import * as bluebird from 'bluebird'
-import { Container } from 'typedi'
 import { initORM } from 'orm'
 import { init as initErrorHandler, errorHandler } from 'lib/error'
 import * as logger from 'lib/logger'
@@ -30,7 +29,7 @@ async function main(): Promise<void> {
 
   validateConfig()
 
-  await initORM(Container)
+  await initORM()
 
   logger.info('Initialize mirror')
   await initMirror()

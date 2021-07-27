@@ -1,8 +1,10 @@
 import { In, MoreThan, Raw } from 'typeorm'
 import { Resolver, Query, Arg } from 'type-graphql'
+import { Service } from 'typedi'
 import { Cdp } from 'graphql/schema'
 import { CdpService } from 'services'
 
+@Service()
 @Resolver((of) => Cdp)
 export class CdpResolver {
   constructor(private readonly cdpService: CdpService) {}

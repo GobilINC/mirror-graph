@@ -1,6 +1,5 @@
 import 'reflect-metadata'
 import * as bluebird from 'bluebird'
-import { Container } from 'typedi'
 import { program } from 'commander'
 import { values } from 'lodash'
 import { initORM } from 'orm'
@@ -20,7 +19,7 @@ async function main(): Promise<void> {
 
   validateConfig()
 
-  await initORM(Container)
+  await initORM()
 
   await initMirror().catch((error) => console.log(error.message))
 

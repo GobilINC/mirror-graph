@@ -1,9 +1,11 @@
 import { Resolver, Query, FieldResolver, Root, Arg } from 'type-graphql'
+import { Service } from 'typedi'
 import { limitedRange } from 'lib/utils'
 import { Statistic, PeriodStatistic, ValueAt, AccountBalance } from 'graphql/schema'
 import { StatisticService } from 'services'
 import { Network } from 'types'
 
+@Service()
 @Resolver((of) => Statistic)
 export class StatisticResolver {
   constructor(private readonly statisticService: StatisticService) {}

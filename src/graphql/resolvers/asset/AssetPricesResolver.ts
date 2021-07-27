@@ -1,9 +1,11 @@
 import { Resolver, FieldResolver, Root, Arg } from 'type-graphql'
+import { Service } from 'typedi'
 import { limitedRange } from 'lib/utils'
 import { AssetEntity } from 'orm'
 import { AssetPrices, AssetOHLC, PriceAt } from 'graphql/schema'
 import { PriceService, OracleService } from 'services'
 
+@Service()
 @Resolver((of) => AssetPrices)
 export class AssetPricesResolver {
   constructor(

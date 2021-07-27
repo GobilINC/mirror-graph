@@ -1,7 +1,7 @@
-
 import * as bluebird from 'bluebird'
 import { Raw } from 'typeorm'
 import { Resolver, Query, Arg, InputType, Field } from 'type-graphql'
+import { Service } from 'typedi'
 import { LimitOrder } from 'graphql/schema'
 import { LimitOrderService } from 'services'
 import { LimitOrderType } from 'types'
@@ -15,6 +15,7 @@ class LimitOrderFilterOption {
   price: string
 }
 
+@Service()
 @Resolver((of) => LimitOrder)
 export class LimitOrderResolver {
   constructor(private readonly limitOrderService: LimitOrderService) {}

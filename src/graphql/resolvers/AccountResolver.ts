@@ -1,10 +1,12 @@
 import { Resolver, Query, Mutation, Root, Arg, FieldResolver } from 'type-graphql'
+import { Service } from 'typedi'
 import GraphQLJSON from 'graphql-type-json'
 import { history as moonpayHistory } from 'lib/moonpay'
 import { AccountService, AirdropService, TxService } from 'services'
 import { Account, AccountVoted, AssetBalance, ValueAt } from 'graphql/schema'
 import { AccountEntity } from 'orm'
 
+@Service()
 @Resolver((of) => Account)
 export class AccountResolver {
   constructor(

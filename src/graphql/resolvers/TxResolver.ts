@@ -1,7 +1,9 @@
 import { Resolver, Query, Arg } from 'type-graphql'
+import { Service } from 'typedi'
 import { Tx } from 'graphql/schema'
 import { TxService } from 'services'
 
+@Service()
 @Resolver((of) => Tx)
 export class TxResolver {
   constructor(private readonly txService: TxService) {}

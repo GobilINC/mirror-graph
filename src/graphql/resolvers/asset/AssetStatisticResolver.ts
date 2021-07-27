@@ -1,9 +1,11 @@
 import { Resolver, FieldResolver, Root, Arg } from 'type-graphql'
+import { Service } from 'typedi'
 import { AssetEntity } from 'orm'
 import { AssetStatistic, APR } from 'graphql/schema'
 import { StatisticService } from 'services'
 import { Network } from 'types'
 
+@Service()
 @Resolver((of) => AssetStatistic)
 export class AssetStatisticResolver {
   constructor(
