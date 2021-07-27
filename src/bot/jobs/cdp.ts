@@ -1,4 +1,4 @@
-import { getRepository } from 'typeorm'
+import { getManager, EntityManager } from 'typeorm'
 import * as logger from 'lib/logger'
 import { cdpService } from 'services'
 import { CdpEntity } from 'orm'
@@ -6,12 +6,16 @@ import { Updater } from 'lib/Updater'
 
 const updater = new Updater(60000) // 1min
 
-async function removeClosedCdps(): Promise<void> {
-  const closedCdps = await cdpService().getAll({
-    select: ['id'], where: { mintAmount: 0, collateralAmount: 0 }
-  })
+async function removeClosedCdps(manager: EntityManager): Promise<void> {
+  const cdpRepo = manager.getRepository(CdpEntity)
+  const closedCdps = await cdpService().getAll(
+    {
+      select: ['id'], where: { mintAmount: 0, collateralAmount: 0 }
+    },
+    cdpRepo
+  )
 
-  await getRepository(CdpEntity).remove(closedCdps)
+  await cdpRepo.remove(closedCdps)
 }
 
 export async function updateCdps(): Promise<void> {
@@ -19,9 +23,10 @@ export async function updateCdps(): Promise<void> {
     return
   }
 
-  await removeClosedCdps()
-
-  await cdpService().calculateCollateralRatio()
+  await getManager().transaction(async (manager: EntityManager) => {
+    await removeClosedCdps(manager)
+    await manager.query('SELECT public.calculateCdpRatio()')
+  })
 
   logger.info('cdp ratio updated')
 }
