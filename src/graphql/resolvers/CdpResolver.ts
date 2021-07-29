@@ -17,6 +17,12 @@ export class CdpResolver {
   ): Promise<Cdp[]> {
     const addressCondition = address ? { address: In(address) } : {}
     const tokensCondition = tokens ? { token: In(tokens) } : {}
+    if (Array.isArray(address) && address.length > 50) {
+      throw new Error('too many addresses')
+    }
+    if (Array.isArray(tokens) && tokens.length > 50) {
+      throw new Error('too many tokens')
+    }
 
     return this.cdpService.getAll({
       where: {
