@@ -9,13 +9,13 @@ import { CdpService } from 'services'
 export class CdpResolver {
   constructor(private readonly cdpService: CdpService) {}
 
-  @Query((returns) => [Cdp], { description: 'Get all cdps' })
+  @Query((returns) => [Cdp], { description: 'Get cdps' })
   async cdps(
     @Arg('maxRatio') maxRatio: number,
     @Arg('tokens', (type) => [String], { nullable: true }) tokens?: string[],
-    @Arg('address', { nullable: true }) address?: string,
+    @Arg('address', (type) => [String], { nullable: true }) address?: string[],
   ): Promise<Cdp[]> {
-    const addressCondition = address ? { address } : {}
+    const addressCondition = address ? { address: In(address) } : {}
     const tokensCondition = tokens ? { token: In(tokens) } : {}
 
     return this.cdpService.getAll({
