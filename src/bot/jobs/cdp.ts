@@ -10,7 +10,8 @@ async function removeClosedCdps(manager: EntityManager): Promise<void> {
   const cdpRepo = manager.getRepository(CdpEntity)
   const closedCdps = await cdpService().getAll(
     {
-      select: ['id'], where: { mintAmount: 0, collateralAmount: 0 }
+      select: ['id'], where: { mintAmount: 0, collateralAmount: 0 },
+      lock: { mode: 'pessimistic_write' }
     },
     cdpRepo
   )
