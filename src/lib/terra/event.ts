@@ -156,7 +156,7 @@ export function parseContractEvents(events: Event[]): ContractEvent[] {
     if (attr.key === 'contract_address') {
       event = {
         address: attr.value,
-        sender: executeContracts[contractEvents.length].sender,
+        sender: executeContracts[contractEvents.length]?.sender,
         action: undefined,
       }
 
