@@ -38,12 +38,18 @@ async function updateCdpRatio(manager: EntityManager): Promise<void> {
 
   // update collateral value
   await bluebird.mapSeries(
-    [...assets, ...collateralAssets].filter((asset) => asset.symbol != 'uusd'),
+    [...assets, ...collateralAssets],
     async (asset) => {
       const { token, symbol } = asset
-      const tokenPrice = symbol !== 'MIR'
-        ? await oracleService().getPrice(token)
-        : await priceService().getPrice(token)
+      let tokenPrice
+
+      if (symbol === 'MIR') {
+        tokenPrice = await priceService().getPrice(token)
+      } else if (symbol === 'uusd') {
+        tokenPrice = '1'
+      } else {
+        tokenPrice = await oracleService().getPrice(token)
+      }
 
       if (!tokenPrice) {
         return
