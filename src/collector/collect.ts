@@ -37,6 +37,7 @@ export async function collect(now: number): Promise<void> {
   })
 
   await updateCdps().catch(errorHandler)
+
   // await syncPairs(lastTx.height).catch(errorHandler)
 
   const txDate = formatToTimeZone(
