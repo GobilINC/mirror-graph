@@ -5,7 +5,6 @@ import { sendSlack } from 'lib/slack'
 import {
   adjustPremium,
   distributeRewards,
-  updateCdps,
   updatePolls,
   updateNews,
   // updateAirdrop,
@@ -37,8 +36,6 @@ async function tick(now: number, wallet: TxWallet): Promise<void> {
   await distributeRewards(wallet).catch((error) => errorHandler('distributeRewards', error))
 
   await updateCollateralPrice().catch((error) => errorHandler('updateCollateralPrice', error))
-
-  await updateCdps().catch((error) => errorHandler('updateCdps', error))
 
   await updatePolls(wallet).catch((error) => errorHandler('updatePolls', error))
 
