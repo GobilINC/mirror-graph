@@ -64,7 +64,7 @@ async function updateCdpRatio(manager: EntityManager): Promise<void> {
     .createQueryBuilder()
     .update(CdpEntity)
     .set({ collateralRatio: () => `collateral_value / mint_value` })
-    .where('collateral_amount > 0 AND mint_amount > 0')
+    .where('collateral_value > 0 AND mint_value > 0')
     .execute()
 }
 
