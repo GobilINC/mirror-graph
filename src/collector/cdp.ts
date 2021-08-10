@@ -8,7 +8,7 @@ async function removeClosedCdps(manager: EntityManager): Promise<void> {
     .createQueryBuilder()
     .delete()
     .from(CdpEntity)
-    .where('collateral_amount > 0 AND mint_amount > 0')
+    .where('collateral_amount = 0 AND mint_amount = 0')
     .execute()
 }
 
