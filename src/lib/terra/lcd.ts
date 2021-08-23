@@ -14,7 +14,7 @@ export async function initLCD(URL: string, chainID: string): Promise<LCDClient> 
   const gasPrices = await nodeFetch(`${fcdUrl}/v1/txs/gas_prices`)
     .then((res) => res.json())
 
-  lcd = new LCDClient({ URL, chainID, gasPrices })
+  lcd = new LCDClient({ URL, chainID, gasPrices: { uusd: +gasPrices['uusd'] } })
 
   return lcd
 }
