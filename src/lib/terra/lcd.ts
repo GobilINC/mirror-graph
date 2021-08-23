@@ -1,12 +1,21 @@
 import { LCDClient, TxInfo, Wallet, Msg, Coins, Coin } from '@terra-money/terra.js'
 import { delay } from 'bluebird'
+import nodeFetch from 'node-fetch'
 import { toSnakeCase, toCamelCase } from 'lib/caseStyles'
 import { num } from 'lib/num'
 
 export let lcd: LCDClient = undefined
 
-export function initLCD(URL: string, chainID: string): LCDClient {
-  lcd = new LCDClient({ URL, chainID, gasPrices: { uusd: 0.15 } })
+const fcdUrl = process.env.TERRA_CHAIN_ID.includes('columbus')
+  ? 'https://fcd.terra.dev/'
+  : 'https://tequila-fcd.terra.dev/'
+
+export async function initLCD(URL: string, chainID: string): Promise<LCDClient> {
+  const gasPrices = await nodeFetch(`${fcdUrl}/v1/txs/gas_prices`)
+    .then((res) => res.json())
+
+  lcd = new LCDClient({ URL, chainID, gasPrices })
+
   return lcd
 }
 

@@ -1,7 +1,7 @@
 import * as bluebird from 'bluebird'
 import { Not } from 'typeorm'
 import { Coins, MsgExecuteContract, StdFee } from '@terra-money/terra.js'
-import { TxWallet, getBlunaToken, getAustToken } from 'lib/terra'
+import { TxWallet, getBlunaToken, getAustToken, getGasAmount } from 'lib/terra'
 import { toSnakeCase } from 'lib/caseStyles'
 import * as logger from 'lib/logger'
 import { getTokenBalance, getDistributionInfo } from 'lib/mirror'
@@ -10,6 +10,7 @@ import { num } from 'lib/num'
 import { Updater } from 'lib/Updater'
 
 const updater = new Updater(5 * 60000) // 5min
+const gas = 4000000
 
 export async function distributeRewards(wallet: TxWallet): Promise<void> {
   if (!updater.needUpdate(Date.now())) {
@@ -27,7 +28,7 @@ export async function distributeRewards(wallet: TxWallet): Promise<void> {
       factory,
       { distribute: {} },
       new Coins([]),
-      new StdFee(4000000, { uusd: 600000 })
+      new StdFee(gas, getGasAmount(gas, 'uusd'))
     )
   }
 
@@ -75,7 +76,7 @@ export async function distributeRewards(wallet: TxWallet): Promise<void> {
 
   if (convertMsgs.length > 0) {
     // execute convert fee
-    await wallet.executeMsgs(convertMsgs, new StdFee(4000000, { uusd: 600000 }))
+    await wallet.executeMsgs(convertMsgs, new StdFee(gas, getGasAmount(gas, 'uusd')))
 
     // execute distribute converted fee
     await wallet.execute(collector, { distribute: {} })
