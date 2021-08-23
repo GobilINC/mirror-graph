@@ -58,7 +58,7 @@ async function updateCdpRatio(manager: EntityManager, maxDiffRatio?: number): Pr
         .update(CdpEntity)
         .set({ collateralValue: () => `collateral_amount * ${collateralPrice}` })
         .where('collateral_token = :token', { token })
-        .andWhere('collateral_amount > 0')
+        .andWhere('collateral_amount > 0 AND mint_value > 0')
 
       if (maxDiffRatio) {
         qb = qb.andWhere('collateral_ratio - min_collateral_ratio < :maxDiffRatio', { maxDiffRatio })
