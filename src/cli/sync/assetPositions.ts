@@ -9,11 +9,11 @@ export async function syncAssetPositions(height: number): Promise<void> {
   const assets = await assetService().getListedAssets()
   const stakingContract = govService().get().staking
 
-  logger.info('try to sync asset positions')
+  logger.info('sync asset positions')
 
   await bluebird.map(assets, async (asset) => {
     const { lpToken } = asset
-    let changed = false
+    let isChanged = false
 
     const pairPool = await getPairPool(asset.pair).catch(() => undefined)
     if (pairPool) {
@@ -22,40 +22,38 @@ export async function syncAssetPositions(height: number): Promise<void> {
 
       if (assetAmount !== pool || collateralAmount !== uusdPool) {
         logger.info(
-          `${asset.symbol} pool not synced. ${pool}-${assetAmount}, ${uusdPool}-${collateralAmount}`
+          `sync ${asset.symbol} pool. ${pool}-${assetAmount}, ${uusdPool}-${collateralAmount}`
         )
 
         asset.positions.pool = assetAmount
         asset.positions.uusdPool = collateralAmount
 
-        changed = true
+        isChanged = true
       }
     }
 
     const tokenInfo = await getTokenInfo(lpToken).catch(() => undefined)
     if (tokenInfo && asset.positions.lpShares !== tokenInfo.totalSupply) {
       logger.info(
-        `${asset.symbol} lpShares not synced. ${asset.positions.lpShares}-${tokenInfo.totalSupply}`
+        `sync ${asset.symbol} lpShares. ${asset.positions.lpShares}-${tokenInfo.totalSupply}`
       )
 
       asset.positions.lpShares = tokenInfo.totalSupply
 
-      changed = true
+      isChanged = true
     }
 
     const tokenBalance = await getTokenBalance(lpToken, stakingContract).catch(() => undefined)
-    if (tokenBalance && asset.positions.lpStaked !== tokenBalance.balance) {
-      logger.info(
-        `${asset.symbol} lpStaked not synced. ${asset.positions.lpStaked}-${tokenBalance.balance}`
-      )
+    if (tokenBalance && asset.positions.lpStaked !== tokenBalance) {
+      logger.info(`sync ${asset.symbol} lpStaked. ${asset.positions.lpStaked}-${tokenBalance}`)
 
-      asset.positions.lpStaked = tokenBalance.balance
+      asset.positions.lpStaked = tokenBalance
 
-      changed = true
+      isChanged = true
     }
 
-    changed && (await getRepository(AssetPositionsEntity).save(asset.positions))
+    isChanged && (await getRepository(AssetPositionsEntity).save(asset.positions))
   })
 
-  logger.info('complete')
+  logger.info('completed')
 }

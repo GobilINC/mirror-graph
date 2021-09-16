@@ -11,11 +11,11 @@ import * as logger from 'lib/logger'
 import { govService, cdpService } from 'services'
 import { CdpEntity } from 'orm'
 
-export async function syncCdps(): Promise<void> {
+export async function syncCdpValues(): Promise<void> {
   const { mint, collateralOracle } = govService().get()
   const cdps = await cdpService().getAll({ order: { id: 'ASC' } })
 
-  logger.info('try to sync cdps')
+  logger.info('sync cdp values')
 
   await bluebird.mapSeries(cdps, async (cdp) => {
     const position = await getMintPosition(mint, cdp.id).catch(() => undefined)
@@ -31,7 +31,7 @@ export async function syncCdps(): Promise<void> {
       await getRepository(CdpEntity).save(cdp)
     }
     if (cdp.mintAmount !== position.asset.amount) {
-      logger.info(`${cdp.id}: collateral ${cdp.collateralAmount}-${position.collateral.amount}`)
+      logger.info(`${cdp.id}: asset ${cdp.mintAmount}-${position.asset.amount}`)
 
       cdp.mintAmount = position.asset.amount
       await getRepository(CdpEntity).save(cdp)
@@ -48,56 +48,18 @@ export async function syncCdps(): Promise<void> {
     await getRepository(CdpEntity).save(cdp)
   })
 
-  const positions = await getMintPositions(mint)
-
-  await bluebird.mapSeries(positions, async (position) => {
-    const { idx, owner, collateral, asset, isShort } = position
-    const cdp = await this.get({ id: idx })
-
-    if (!cdp) {
-      const token = asset.info['token']
-        ? asset.info['token']['contractAddr']
-        : asset.info['nativeToken']['denom']
-      const collateralToken = collateral.info['token']
-        ? collateral.info['token']['contractAddr']
-        : collateral.info['nativeToken']['denom']
-      const assetConfig = await getMintAssetConfig(mint, token)
-      const collateralInfo =
-        collateralToken !== 'uusd' &&
-        (await getCollateralAssetInfo(collateralOracle, collateralToken).catch((error) => {
-          console.log(error)
-          return undefined
-        }))
-      const multiplier = collateralInfo?.multiplier || '1'
-
-      const cdp = new CdpEntity({
-        id: idx,
-        address: owner,
-        token,
-        mintAmount: asset.amount,
-        collateralToken,
-        collateralAmount: collateral.amount,
-        minCollateralRatio: num(assetConfig.minCollateralRatio).multipliedBy(multiplier).toString(),
-        isShort,
-      })
-
-      await getRepository(CdpEntity).save(cdp)
-      logger.info(`${idx} cdp recovered`)
-    }
-  })
-
-  console.log('complete')
+  logger.info('completed')
 }
 
-export async function syncChainToDB(): Promise<void> {
+export async function syncCdps(): Promise<void> {
   const { mint, collateralOracle } = govService().get()
   const positions = await getMintPositions(mint)
 
-  logger.info(`positions: ${positions.length}`)
+  logger.info('sync cdps')
 
   await bluebird.mapSeries(positions, async (position) => {
     const { idx, owner, collateral, asset, isShort } = position
-    const cdp = await this.get({ id: idx })
+    const cdp = await cdpService().get({ id: idx })
 
     if (!cdp) {
       const token = asset.info['token']
@@ -127,9 +89,9 @@ export async function syncChainToDB(): Promise<void> {
       })
 
       await getRepository(CdpEntity).save(cdp)
-      logger.info(`${idx} cdp recovered`)
+      logger.info(`${cdp.id} cdp recovered`)
     }
   })
 
-  console.log('complete')
+  logger.info('completed')
 }
