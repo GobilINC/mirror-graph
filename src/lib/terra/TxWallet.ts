@@ -74,10 +74,10 @@ export class TxWallet extends Wallet {
       [
         new MsgInstantiateContract(
           this.key.accAddress,
+          this.key.accAddress,
           codeId,
           toSnakeCase(initMsg),
-          new Coins([]),
-          migratable
+          new Coins([])
         ),
       ],
       undefined,
@@ -130,9 +130,10 @@ export class TxWallet extends Wallet {
       throw new Error('wrong contract')
     }
 
-    return this.executeMsgs([
-      new MsgExecuteContract(this.key.accAddress, contract, toSnakeCase(msg), coins),
-    ], fee)
+    return this.executeMsgs(
+      [new MsgExecuteContract(this.key.accAddress, contract, toSnakeCase(msg), coins)],
+      fee
+    )
   }
 
   async migrate(contract: string, newCodeId: number): Promise<TxInfo> {

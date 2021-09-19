@@ -1,5 +1,13 @@
 import * as bluebird from 'bluebird'
-import { Repository, FindConditions, FindOneOptions, FindManyOptions, getConnection, EntityManager, getManager } from 'typeorm'
+import {
+  Repository,
+  FindConditions,
+  FindOneOptions,
+  FindManyOptions,
+  getConnection,
+  EntityManager,
+  getManager,
+} from 'typeorm'
 import { InjectRepository } from 'typeorm-typedi-extensions'
 import { Container, Service, Inject } from 'typedi'
 import { lcd, isNativeToken, getContractStore } from 'lib/terra'
@@ -19,18 +27,18 @@ export class AccountService {
     @InjectRepository(BalanceEntity) private readonly balanceRepo: Repository<BalanceEntity>
   ) {}
 
-  async newAccount(account: Partial<AccountEntity>, manager?: EntityManager): Promise<AccountEntity | undefined> {
+  async newAccount(
+    account: Partial<AccountEntity>,
+    manager?: EntityManager
+  ): Promise<AccountEntity | undefined> {
     const insertOrUpdate = async (account: Partial<AccountEntity>, manager?: EntityManager) => {
       const repo = manager.getRepository(AccountEntity)
       const accountEntity =
-        (
-          await this.get(
-            { address: account.address },
-            { lock: { mode: 'pessimistic_write' } },
-            repo
-          )
-        )
-        || new AccountEntity({ ...account, govStaked: '0', withdrawnGovRewards: '0' })
+        (await this.get(
+          { address: account.address },
+          { lock: { mode: 'pessimistic_write' } },
+          repo
+        )) || new AccountEntity({ ...account, govStaked: '0', withdrawnGovRewards: '0' })
 
       Object.assign(accountEntity, account)
 
@@ -47,15 +55,16 @@ export class AccountService {
     }
 
     // sync uusd balance
-    accountEntity?.isAppUser && await this.syncBalance(account.address, 'uusd')
+    accountEntity?.isAppUser && (await this.syncBalance(account.address, 'uusd'))
 
     return accountEntity
   }
 
   async syncBalance(address: string, token: string): Promise<void> {
-    const dbAmount = (await this.getBalanceEntity({ address, token }, { order: { id: 'DESC' } }))?.balance || '0'
+    const dbAmount =
+      (await this.getBalanceEntity({ address, token }, { order: { id: 'DESC' } }))?.balance || '0'
     const chainAmount = isNativeToken(token)
-      ? (await lcd.bank.balance(address)).get(token)?.amount?.toString() || '0'
+      ? (await lcd.bank.balance(address))[0]?.get(token)?.amount?.toString() || '0'
       : await getTokenBalance(token, address)
     const diff = num(chainAmount).minus(dbAmount).toString()
 
@@ -88,7 +97,10 @@ export class AccountService {
     return repo.findOne(conditions, options)
   }
 
-  async getAll(options?: FindManyOptions<AccountEntity>, repo = this.repo): Promise<AccountEntity[]> {
+  async getAll(
+    options?: FindManyOptions<AccountEntity>,
+    repo = this.repo
+  ): Promise<AccountEntity[]> {
     return repo.find(options)
   }
 
@@ -102,7 +114,7 @@ export class AccountService {
 
   async getBalance(address: string, token: string): Promise<AssetBalance> {
     if (isNativeToken(token)) {
-      const coin = (await lcd.bank.balance(address)).get(token)
+      const coin = (await lcd.bank.balance(address))[0]?.get(token)
       return { token, balance: coin?.amount?.toString() || '0', averagePrice: '1' }
     }
 
@@ -229,11 +241,20 @@ export class AccountService {
     return repo.save(entity)
   }
 
-  async updateGovStaked(address: string, stake: string, withdraw: string, manager?: EntityManager): Promise<AccountEntity> {
+  async updateGovStaked(
+    address: string,
+    stake: string,
+    withdraw: string,
+    manager?: EntityManager
+  ): Promise<AccountEntity> {
     const update = async (manager: EntityManager): Promise<AccountEntity> => {
       const repo = manager.getRepository(AccountEntity)
 
-      const accountEntity = await this.get({ address }, { lock: { mode: 'pessimistic_write' } }, repo)
+      const accountEntity = await this.get(
+        { address },
+        { lock: { mode: 'pessimistic_write' } },
+        repo
+      )
       if (!accountEntity) {
         return
       }
@@ -246,26 +267,28 @@ export class AccountService {
           .select(`COALESCE(SUM((data->>'amount')::numeric), 0)`, 'staked')
           .where(`address='${address}' AND type='GOV_STAKE'`)
           .getRawOne()
-          .then(value => value.staked)
+          .then((value) => value.staked)
         const unstaked = await txRepo
           .createQueryBuilder()
           .select(`COALESCE(SUM((data->>'amount')::numeric), 0)`, 'unstaked')
           .where(`address='${address}' AND type='GOV_UNSTAKE'`)
           .getRawOne()
-          .then(value => value.unstaked)
+          .then((value) => value.unstaked)
         const withdrawn = await txRepo
           .createQueryBuilder()
           .select(`COALESCE(SUM((data->>'amount')::numeric), 0)`, 'withdrawn')
           .where(`address='${address}' AND type='GOV_WITHDRAW_VOTING_REWARDS'`)
           .getRawOne()
-          .then(value => value.withdrawn)
+          .then((value) => value.withdrawn)
 
         accountEntity.govStaked = num(staked).minus(unstaked).toFixed(0)
         accountEntity.withdrawnGovRewards = withdrawn
       }
 
       accountEntity.govStaked = num(accountEntity.govStaked).plus(stake).toFixed(0)
-      accountEntity.withdrawnGovRewards = num(accountEntity.withdrawnGovRewards).plus(withdraw).toFixed(0)
+      accountEntity.withdrawnGovRewards = num(accountEntity.withdrawnGovRewards)
+        .plus(withdraw)
+        .toFixed(0)
 
       return repo.save(accountEntity)
     }

@@ -6,13 +6,20 @@ import { num } from 'lib/num'
 
 export let lcd: LCDClient = undefined
 
-const fcdUrl = process.env.TERRA_CHAIN_ID.includes('columbus')
-  ? 'https://fcd.terra.dev/'
-  : 'https://tequila-fcd.terra.dev/'
+function getFcdUrl() {
+  if (process.env.TERRA_CHAIN_ID.includes('columbus')) {
+    return 'https://fcd.terra.dev'
+  } else if (process.env.TERRA_CHAIN_ID.includes('tequila')) {
+    return 'https://tequila-fcd.terra.dev'
+  } else if (process.env.TERRA_CHAIN_ID.includes('moonshine')) {
+    return 'https://moonshine-fcd.terra.dev'
+  } else if (process.env.TERRA_CHAIN_ID.includes('bombay')) {
+    return 'https://bombay-fcd.terra.dev'
+  }
+}
 
 export async function initLCD(URL: string, chainID: string): Promise<LCDClient> {
-  const gasPrices = await nodeFetch(`${fcdUrl}/v1/txs/gas_prices`)
-    .then((res) => res.json())
+  const gasPrices = await nodeFetch(`${getFcdUrl()}/v1/txs/gas_prices`).then((res) => res.json())
 
   lcd = new LCDClient({ URL, chainID, gasPrices: { uusd: +gasPrices['uusd'] } })
 
@@ -42,7 +49,7 @@ export async function transaction(
   timeout = 60000
 ): Promise<TxInfo> {
   return wallet
-    .createAndSignTx({ msgs, account_number: accountNumber, sequence, fee })
+    .createAndSignTx({ msgs, accountNumber, sequence, fee })
     .then((signed) => lcd.tx.broadcast(signed))
     .then(async (broadcastResult) => {
       if (broadcastResult['code']) {
@@ -78,7 +85,7 @@ export function getGasAmount(gas: number, denom: string): Coins.Input {
 }
 
 export async function getOraclePrice(quote: string): Promise<string> {
-  const coin = await lcd.oracle.exchangeRate(quote)
+  const coin = await lcd.oracle.exchangeRate('uusd')
 
   return coin.toData().amount
 }
