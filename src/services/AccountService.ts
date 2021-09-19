@@ -10,7 +10,7 @@ import {
 } from 'typeorm'
 import { InjectRepository } from 'typeorm-typedi-extensions'
 import { Container, Service, Inject } from 'typedi'
-import { lcd, isNativeToken, getContractStore } from 'lib/terra'
+import { isNativeToken, getContractStore, getBalance } from 'lib/terra'
 import { getTokenBalance, getGovStaker } from 'lib/mirror'
 import { num } from 'lib/num'
 import * as logger from 'lib/logger'
@@ -64,7 +64,7 @@ export class AccountService {
     const dbAmount =
       (await this.getBalanceEntity({ address, token }, { order: { id: 'DESC' } }))?.balance || '0'
     const chainAmount = isNativeToken(token)
-      ? (await lcd.bank.balance(address))[0]?.get(token)?.amount?.toString() || '0'
+      ? (await getBalance(address))?.get(token)?.amount?.toString() || '0'
       : await getTokenBalance(token, address)
     const diff = num(chainAmount).minus(dbAmount).toString()
 
@@ -114,7 +114,7 @@ export class AccountService {
 
   async getBalance(address: string, token: string): Promise<AssetBalance> {
     if (isNativeToken(token)) {
-      const coin = (await lcd.bank.balance(address))[0]?.get(token)
+      const coin = (await getBalance(address))?.get(token)
       return { token, balance: coin?.amount?.toString() || '0', averagePrice: '1' }
     }
 

@@ -89,3 +89,17 @@ export async function getOraclePrice(quote: string): Promise<string> {
 
   return coin.toData().amount
 }
+
+export async function getBalance(address: string): Promise<Coins> {
+  let coins: Coins = new Coins()
+  let nextKey
+
+  do {
+    const [result, pagination] = await lcd.bank.balance(address)
+    coins = coins.add(result)
+
+    nextKey = pagination?.next_key
+  } while (nextKey)
+
+  return coins
+}
