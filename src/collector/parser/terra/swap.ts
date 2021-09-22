@@ -1,7 +1,7 @@
 import * as bluebird from 'bluebird'
-import { TxInfo, TxLog, MsgSwap } from '@terra-money/terra.js'
+import { TxLog, MsgSwap, Coins } from '@terra-money/terra.js'
 import { EntityManager } from 'typeorm'
-import { findAttributes, findAttribute } from 'lib/terra'
+import { findAttributes, findAttribute, MantleTx } from 'lib/terra'
 import { splitTokenAmount } from 'lib/utils'
 import { num } from 'lib/num'
 import { govService, txService, accountService } from 'services'
@@ -9,13 +9,15 @@ import { TxType } from 'types'
 import { BalanceEntity } from 'orm'
 
 export async function parse(
-  manager: EntityManager, txInfo: TxInfo, msg: MsgSwap, log: TxLog
+  manager: EntityManager,
+  txInfo: MantleTx,
+  msg: MsgSwap,
+  log: TxLog
 ): Promise<void> {
   const account = await accountService().get({ address: msg.trader })
 
   // only registered account
-  if (!account)
-    return
+  if (!account) return
 
   const datetime = new Date(txInfo.timestamp)
   const tx = {
@@ -35,36 +37,45 @@ export async function parse(
 
   let uusdChange = '0'
   if (offerTokenAmount.token === 'uusd') uusdChange = `-${offerTokenAmount.amount}`
-  else if(swapTokenAmount.token === 'uusd') uusdChange = swapTokenAmount.amount
+  else if (swapTokenAmount.token === 'uusd') uusdChange = swapTokenAmount.amount
 
   // calculate fee
-  const feeCoins = txInfo.tx.fee?.amount?.toArray()
-  Array.isArray(feeCoins) && await bluebird.mapSeries(feeCoins, async (coin) => {
-    if (coin.denom === 'uusd') {
-      uusdChange = num(uusdChange).minus(coin.amount.toString()).toString()
-    }
-  })
+  const feeCoins = txInfo.tx.fee?.amount
+  Array.isArray(feeCoins) &&
+    (await bluebird.mapSeries(feeCoins, async (coin) => {
+      if (coin.denom === 'uusd') {
+        uusdChange = num(uusdChange).minus(coin.amount).toString()
+      }
+    }))
 
-  await txService().newTx({
-    ...tx,
-    type: TxType.TERRA_SWAP,
-    address: msg.trader,
-    data: {
-      offer,
-      trader: findAttribute(attributes, 'trader'),
-      recipient: findAttribute(attributes, 'recipient'),
-      swapCoin,
-      swapFee: findAttribute(attributes, 'swap_fee'),
+  await txService().newTx(
+    {
+      ...tx,
+      type: TxType.TERRA_SWAP,
+      address: msg.trader,
+      data: {
+        offer,
+        trader: findAttribute(attributes, 'trader'),
+        recipient: findAttribute(attributes, 'recipient'),
+        swapCoin,
+        swapFee: findAttribute(attributes, 'swap_fee'),
+      },
+      uusdChange,
+      fee: Coins.fromAmino(txInfo.tx.fee.amount).toString(),
+      tags: [offerTokenAmount.token, swapTokenAmount.token],
     },
-    uusdChange,
-    fee: txInfo.tx.fee.amount.toString(),
-    tags: [offerTokenAmount.token, swapTokenAmount.token],
-  }, manager)
+    manager
+  )
 
   // if uusd token and app user, record balance history
   if (account.isAppUser && uusdChange !== '0') {
     await accountService().addBalance(
-      msg.trader, 'uusd', '1', uusdChange, datetime, manager.getRepository(BalanceEntity)
+      msg.trader,
+      'uusd',
+      '1',
+      uusdChange,
+      datetime,
+      manager.getRepository(BalanceEntity)
     )
   }
 }

@@ -1,20 +1,39 @@
 import {
-  TxInfo, Msg, TxLog, MsgSend, MsgMultiSend, MsgSwap, MsgSwapSend, MsgExecuteContract
+  Msg,
+  TxLog,
+  MsgSend,
+  MsgMultiSend,
+  MsgSwap,
+  MsgSwapSend,
+  MsgExecuteContract,
 } from '@terra-money/terra.js'
 import { isSameDay } from 'date-fns'
 import * as bluebird from 'bluebird'
 import { EntityManager } from 'typeorm'
 import { statisticService } from 'services'
-import { DailyStatisticEntity/*, TxHashEntity*/ } from 'orm'
+import { DailyStatisticEntity /*, TxHashEntity*/ } from 'orm'
 import { parseTerraMsg } from './terra'
 import { parseMirrorMsg } from './mirror'
+import { MantleTx } from 'lib/terra'
 
+const msgWhitelist = [
+  'wasm/MsgExecuteContract',
+  'bank/MsgSend',
+  'bank/MsgMultiSend',
+  'market/MsgSwap',
+  'market/MsgSwapSend',
+]
 let lastTick = 0
 
 async function parseMsg(
-  manager: EntityManager, txInfo: TxInfo, msg: Msg, index: number, log: TxLog
+  manager: EntityManager,
+  txInfo: MantleTx,
+  msg: Msg,
+  index: number,
+  log: TxLog
 ): Promise<void> {
   if (msg instanceof MsgExecuteContract) {
+    console.log('parse mirror msg')
     return parseMirrorMsg(manager, txInfo, msg, index, log)
   } else if (
     msg instanceof MsgSend ||
@@ -22,6 +41,7 @@ async function parseMsg(
     msg instanceof MsgSwap ||
     msg instanceof MsgSwapSend
   ) {
+    console.log('parse terra msg', msg, log)
     return parseTerraMsg(manager, txInfo, msg, log)
   }
 }
@@ -42,10 +62,21 @@ async function txTick(manager: EntityManager, timestamp: number): Promise<void> 
   }
 }
 
-export async function parseTxs(manager: EntityManager, txs: TxInfo[]): Promise<void> {
+export async function parseTxs(manager: EntityManager, txs: MantleTx[]): Promise<void> {
   await bluebird.mapSeries(txs, async (txInfo) => {
     await bluebird.mapSeries(txInfo.tx.msg, async (msg, index) => {
-      await parseMsg(manager, txInfo, msg, index, txInfo.logs[index]).catch((error) => {
+      // parse only whitelisted msgs
+      if (!msgWhitelist.includes(msg.type)) {
+        return
+      }
+
+      await parseMsg(
+        manager,
+        txInfo,
+        Msg.fromAmino(msg as Msg.Amino),
+        index,
+        TxLog.fromData(txInfo.logs[index] as TxLog.Data)
+      ).catch((error) => {
         if (error) {
           error['height'] = txInfo.height
           error['txHash'] = txInfo.txhash

@@ -95,7 +95,12 @@ export async function getBalance(address: string): Promise<Coins> {
   let nextKey
 
   do {
-    const [result, pagination] = await lcd.bank.balance(address)
+    const [result, pagination] = await lcd.bank.balance(
+      address,
+      nextKey && {
+        'pagination.key': nextKey,
+      }
+    )
     coins = coins.add(result)
 
     nextKey = pagination?.next_key

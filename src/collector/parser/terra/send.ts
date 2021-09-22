@@ -1,16 +1,15 @@
 import * as bluebird from 'bluebird'
-import { TxInfo, TxLog } from '@terra-money/terra.js'
+import { TxLog, Coins } from '@terra-money/terra.js'
 import { EntityManager } from 'typeorm'
-import { parseTransfer } from 'lib/terra'
+import { MantleTx, parseTransfer } from 'lib/terra'
 import { num } from 'lib/num'
 import { govService, txService, accountService } from 'services'
 import { TxType } from 'types'
 import { BalanceEntity } from 'orm'
 
-export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog): Promise<void> {
+export async function parse(manager: EntityManager, txInfo: MantleTx, log: TxLog): Promise<void> {
   const transfers = parseTransfer(log.events)
-  if (!transfers || transfers.length < 1)
-    return
+  if (!transfers || transfers.length < 1) return
 
   const balanceRepo = manager.getRepository(BalanceEntity)
   const datetime = new Date(txInfo.timestamp)
@@ -30,26 +29,34 @@ export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog):
 
     // only registered account
     if (fromAccount) {
-      const fee = txInfo.tx.fee.amount.toString()
+      const fee = Coins.fromAmino(txInfo.tx.fee.amount).toString()
       let uusdChange = transfer.denom === 'uusd' ? `-${transfer.amount}` : '0'
 
       // calculate fee
-      const feeCoins = txInfo.tx.fee?.amount?.toArray()
-      Array.isArray(feeCoins) && await bluebird.mapSeries(feeCoins, async (coin) => {
-        if (coin.denom === 'uusd') {
-          uusdChange = num(uusdChange).minus(coin.amount.toString()).toString()
-        }
-      })
+      const feeCoins = txInfo.tx.fee?.amount
+      Array.isArray(feeCoins) &&
+        (await bluebird.mapSeries(feeCoins, async (coin) => {
+          if (coin.denom === 'uusd') {
+            uusdChange = num(uusdChange).minus(coin.amount).toString()
+          }
+        }))
 
-      await txService().newTx({
-        ...tx, type: TxType.TERRA_SEND, address: from, data, uusdChange, tags, fee
-      }, manager)
+      await txService().newTx(
+        {
+          ...tx,
+          type: TxType.TERRA_SEND,
+          address: from,
+          data,
+          uusdChange,
+          tags,
+          fee,
+        },
+        manager
+      )
 
       // if uusd token and app user, record balance history
       if (fromAccount.isAppUser && uusdChange !== '0') {
-        await accountService().addBalance(
-          from, 'uusd', '1', uusdChange, datetime, balanceRepo
-        )
+        await accountService().addBalance(from, 'uusd', '1', uusdChange, datetime, balanceRepo)
       }
     }
 
@@ -59,15 +66,21 @@ export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog):
     if (toAccount) {
       const uusdChange = transfer.denom === 'uusd' ? transfer.amount : '0'
 
-      await txService().newTx({
-        ...tx, type: TxType.TERRA_RECEIVE, address: to, data, uusdChange, tags
-      }, manager)
+      await txService().newTx(
+        {
+          ...tx,
+          type: TxType.TERRA_RECEIVE,
+          address: to,
+          data,
+          uusdChange,
+          tags,
+        },
+        manager
+      )
 
       // if uusd token and app user, record balance history
       if (toAccount.isAppUser && uusdChange !== '0') {
-        await accountService().addBalance(
-          to, 'uusd', '1', uusdChange, datetime, balanceRepo
-        )
+        await accountService().addBalance(to, 'uusd', '1', uusdChange, datetime, balanceRepo)
       }
     }
   })

@@ -1,8 +1,7 @@
-
 import * as bluebird from 'bluebird'
-import { TxInfo, MsgExecuteContract, TxLog } from '@terra-money/terra.js'
+import { MsgExecuteContract, TxLog, Coins } from '@terra-money/terra.js'
 import { EntityManager } from 'typeorm'
-import { parseContractEvents } from 'lib/terra'
+import { parseContractEvents, MantleTx } from 'lib/terra'
 import { contractService } from 'services'
 import { ContractType } from 'types'
 import { ContractEntity } from 'orm'
@@ -22,7 +21,11 @@ import * as airdrop from './airdrop'
 import * as lock from './lock'
 
 export async function parseMirrorMsg(
-  manager: EntityManager, txInfo: TxInfo, msg: MsgExecuteContract, index: number, log: TxLog
+  manager: EntityManager,
+  txInfo: MantleTx,
+  msg: MsgExecuteContract,
+  index: number,
+  log: TxLog
 ): Promise<void> {
   const contractRepo = manager.getRepository(ContractEntity)
   const contractEvents = parseContractEvents(log.events)
@@ -35,7 +38,7 @@ export async function parseMirrorMsg(
     height: txInfo.height,
     txHash: txInfo.txhash,
     timestamp: txInfo.timestamp,
-    fee: txInfo.tx.fee.amount.toString(),
+    fee: Coins.fromAmino(txInfo.tx.fee.amount).toString(),
     sender: msg.sender,
     coins: msg.coins,
     msg: msg.execute_msg,
@@ -46,7 +49,11 @@ export async function parseMirrorMsg(
   }
 
   await bluebird.mapSeries(contractEvents, async (event) => {
-    const contract = await contractService().get({ address: event.address }, undefined, contractRepo)
+    const contract = await contractService().get(
+      { address: event.address },
+      undefined,
+      contractRepo
+    )
     if (!contract) {
       return
     }
