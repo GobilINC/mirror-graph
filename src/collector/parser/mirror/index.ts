@@ -29,6 +29,7 @@ export async function parseMirrorMsg(
 ): Promise<void> {
   const contractRepo = manager.getRepository(ContractEntity)
   const contractEvents = parseContractEvents(log.events)
+
   if (!contractEvents) {
     return
   }

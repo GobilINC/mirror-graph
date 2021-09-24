@@ -33,7 +33,6 @@ async function parseMsg(
   log: TxLog
 ): Promise<void> {
   if (msg instanceof MsgExecuteContract) {
-    console.log('parse mirror msg')
     return parseMirrorMsg(manager, txInfo, msg, index, log)
   } else if (
     msg instanceof MsgSend ||
@@ -41,7 +40,6 @@ async function parseMsg(
     msg instanceof MsgSwap ||
     msg instanceof MsgSwapSend
   ) {
-    console.log('parse terra msg', msg, log)
     return parseTerraMsg(manager, txInfo, msg, log)
   }
 }
