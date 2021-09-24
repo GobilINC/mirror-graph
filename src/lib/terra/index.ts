@@ -49,3 +49,17 @@ export function getAnchorToken(): string {
     return 'terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc'
   }
 }
+
+export function getAnchorMarket(): string {
+  if (
+    process.env.TERRA_CHAIN_ID.includes('columbus') ||
+    process.env.TERRA_CHAIN_ID.includes('localterra')
+  ) {
+    return 'terra1sepfj7s0aeg5967uxnfk4thzlerrsktkpelm5s'
+  } else if (
+    process.env.TERRA_CHAIN_ID.includes('tequila') ||
+    process.env.TERRA_CHAIN_ID.includes('bombay')
+  ) {
+    return 'terra15dwd5mj8v59wpj0wvt233mf5efdff808c5tkal'
+  }
+}
