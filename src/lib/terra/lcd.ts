@@ -7,7 +7,10 @@ import { num } from 'lib/num'
 export let lcd: LCDClient = undefined
 
 function getFcdUrl() {
-  if (process.env.TERRA_CHAIN_ID.includes('columbus')) {
+  if (
+    process.env.TERRA_CHAIN_ID.includes('columbus') ||
+    process.env.TERRA_CHAIN_ID.includes('localterra')
+  ) {
     return 'https://fcd.terra.dev'
   } else if (process.env.TERRA_CHAIN_ID.includes('tequila')) {
     return 'https://tequila-fcd.terra.dev'

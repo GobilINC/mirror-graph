@@ -85,6 +85,8 @@ export async function getTxs(height: number): Promise<TxInfo[]> {
               auth_info {
                 fee {
                   payer
+                  gas_limit
+                  granter
                   amount {
                     denom
                     amount
@@ -92,6 +94,8 @@ export async function getTxs(height: number): Promise<TxInfo[]> {
                 }
                 signer_infos {
                   mode_info
+                  public_key
+                  sequence
                 }
               }
               body {
@@ -108,7 +112,7 @@ export async function getTxs(height: number): Promise<TxInfo[]> {
   )
 
   return response?.tx?.byHeight
-    .filter((rawTx) => rawTx.code > 0)
+    .filter((rawTx) => +rawTx['code'] === 0)
     .map((rawTx) => TxInfo.fromData(rawTx))
 }
 
