@@ -52,7 +52,7 @@ export function findAttribute(attributes: EventKV[], key: string): string {
 }
 
 export function parseContractActions(events: Event[]): ContractActions {
-  const attributes = findAttributes(events, 'from_contract')
+  const attributes = findAttributes(events, 'wasm')
   if (!attributes) {
     return
   }
@@ -133,13 +133,12 @@ export function parseExecuteContracts(events: Event[]): ExecuteContract[] {
     executeContracts.push({ sender, contractAddress })
   }
 
-  // note: execute_contract log is in reverse order.
-  return executeContracts.reverse()
+  return executeContracts
 }
 
 export function parseContractEvents(events: Event[]): ContractEvent[] {
   const executeContracts = parseExecuteContracts(events)
-  const attributes = findAttributes(events, 'from_contract')
+  const attributes = findAttributes(events, 'wasm')
   if (!Array.isArray(executeContracts) || !Array.isArray(attributes)) {
     return
   }
@@ -186,9 +185,11 @@ export function parseContractEvents(events: Event[]): ContractEvent[] {
 }
 
 export function findContractAction(
-  contractEvents: ContractEvent[], address:string, action: unknown
+  contractEvents: ContractEvent[],
+  address: string,
+  action: unknown
 ): ContractEvent {
   return contractEvents.find(
-    (event) => (event.address === address && event.action && isMatch(event.action, action))
+    (event) => event.address === address && event.action && isMatch(event.action, action)
   )
 }

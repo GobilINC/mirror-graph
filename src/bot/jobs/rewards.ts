@@ -1,6 +1,6 @@
 import * as bluebird from 'bluebird'
 import { Not } from 'typeorm'
-import { Coins, MsgExecuteContract, StdFee } from '@terra-money/terra.js'
+import { Coins, MsgExecuteContract, Fee } from '@terra-money/terra.js'
 import { TxWallet, getBlunaToken, getAustToken, getGasAmount } from 'lib/terra'
 import { toSnakeCase } from 'lib/caseStyles'
 import * as logger from 'lib/logger'
@@ -18,17 +18,17 @@ export async function distributeRewards(wallet: TxWallet): Promise<void> {
   }
 
   const { factory, collector, mirrorToken } = govService().get()
-  const assets = await assetService().getListedAssets({ symbol: Not('MIR')})
+  const assets = await assetService().getListedAssets({ symbol: Not('MIR') })
   const sender = wallet.key.accAddress
 
   // MIR inflation distribute every 1hour
   const distributionInfo = await getDistributionInfo(factory)
-  if (Date.now() - (+distributionInfo.lastDistributed * 1000) >= 60000 * 60) {
+  if (Date.now() - +distributionInfo.lastDistributed * 1000 >= 60000 * 60) {
     await wallet.execute(
       factory,
       { distribute: {} },
       new Coins([]),
-      new StdFee(gas, getGasAmount(gas, 'uusd'))
+      new Fee(gas, getGasAmount(gas, 'uusd'))
     )
   }
 
@@ -39,7 +39,10 @@ export async function distributeRewards(wallet: TxWallet): Promise<void> {
 
       if (num(balance).isGreaterThan(10000)) {
         return new MsgExecuteContract(
-          sender, collector, toSnakeCase({ convert: { assetToken: asset.token } }), new Coins([])
+          sender,
+          collector,
+          toSnakeCase({ convert: { assetToken: asset.token } }),
+          new Coins([])
         )
       }
     })
@@ -48,9 +51,14 @@ export async function distributeRewards(wallet: TxWallet): Promise<void> {
   // collector has uusd > convert mir
   const { balance: uusdBalance } = await accountService().getBalance(collector, 'uusd')
   if (num(uusdBalance).isGreaterThan(10000000)) {
-    convertMsgs.push(new MsgExecuteContract(
-      sender, collector, toSnakeCase({ convert: { assetToken: mirrorToken } }), new Coins([])
-    ))
+    convertMsgs.push(
+      new MsgExecuteContract(
+        sender,
+        collector,
+        toSnakeCase({ convert: { assetToken: mirrorToken } }),
+        new Coins([])
+      )
+    )
   }
 
   // collector has uluna or bluna > convert mir
@@ -60,23 +68,33 @@ export async function distributeRewards(wallet: TxWallet): Promise<void> {
     const { balance: lunaBalance } = await accountService().getBalance(collector, 'uluna')
 
     if (num(lunaBalance).isGreaterThan(10000000) || num(bLunaBalance).isGreaterThan(10000000)) {
-      convertMsgs.push(new MsgExecuteContract(
-        sender, collector, toSnakeCase({ convert: { assetToken: bLunaToken } }), new Coins([])
-      ))
+      convertMsgs.push(
+        new MsgExecuteContract(
+          sender,
+          collector,
+          toSnakeCase({ convert: { assetToken: bLunaToken } }),
+          new Coins([])
+        )
+      )
     }
   }
 
   // collector has aust > convert mir
   const aUstToken = getAustToken()
   if (aUstToken && num(await getTokenBalance(aUstToken, collector)).isGreaterThan(10000000)) {
-    convertMsgs.push(new MsgExecuteContract(
-      sender, collector, toSnakeCase({ convert: { assetToken: aUstToken } }), new Coins([])
-    ))
+    convertMsgs.push(
+      new MsgExecuteContract(
+        sender,
+        collector,
+        toSnakeCase({ convert: { assetToken: aUstToken } }),
+        new Coins([])
+      )
+    )
   }
 
   if (convertMsgs.length > 0) {
     // execute convert fee
-    await wallet.executeMsgs(convertMsgs, new StdFee(gas, getGasAmount(gas, 'uusd')))
+    await wallet.executeMsgs(convertMsgs, new Fee(gas, getGasAmount(gas, 'uusd')))
 
     // execute distribute converted fee
     await wallet.execute(collector, { distribute: {} })

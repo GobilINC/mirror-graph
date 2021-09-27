@@ -6,13 +6,23 @@ import { num } from 'lib/num'
 
 export let lcd: LCDClient = undefined
 
-const fcdUrl = process.env.TERRA_CHAIN_ID.includes('columbus')
-  ? 'https://fcd.terra.dev/'
-  : 'https://tequila-fcd.terra.dev/'
+function getFcdUrl() {
+  if (
+    process.env.TERRA_CHAIN_ID.includes('columbus') ||
+    process.env.TERRA_CHAIN_ID.includes('localterra')
+  ) {
+    return 'https://fcd.terra.dev'
+  } else if (process.env.TERRA_CHAIN_ID.includes('tequila')) {
+    return 'https://tequila-fcd.terra.dev'
+  } else if (process.env.TERRA_CHAIN_ID.includes('moonshine')) {
+    return 'https://moonshine-fcd.terra.dev'
+  } else if (process.env.TERRA_CHAIN_ID.includes('bombay')) {
+    return 'https://bombay-fcd.terra.dev'
+  }
+}
 
 export async function initLCD(URL: string, chainID: string): Promise<LCDClient> {
-  const gasPrices = await nodeFetch(`${fcdUrl}/v1/txs/gas_prices`)
-    .then((res) => res.json())
+  const gasPrices = await nodeFetch(`${getFcdUrl()}/v1/txs/gas_prices`).then((res) => res.json())
 
   lcd = new LCDClient({ URL, chainID, gasPrices: { uusd: +gasPrices['uusd'] } })
 
@@ -42,7 +52,7 @@ export async function transaction(
   timeout = 60000
 ): Promise<TxInfo> {
   return wallet
-    .createAndSignTx({ msgs, account_number: accountNumber, sequence, fee })
+    .createAndSignTx({ msgs, accountNumber, sequence, fee })
     .then((signed) => lcd.tx.broadcast(signed))
     .then(async (broadcastResult) => {
       if (broadcastResult['code']) {
@@ -81,4 +91,23 @@ export async function getOraclePrice(quote: string): Promise<string> {
   const coin = await lcd.oracle.exchangeRate(quote)
 
   return coin.toData().amount
+}
+
+export async function getBalance(address: string): Promise<Coins> {
+  let coins: Coins = new Coins()
+  let nextKey
+
+  do {
+    const [result, pagination] = await lcd.bank.balance(
+      address,
+      nextKey && {
+        'pagination.key': nextKey,
+      }
+    )
+    coins = coins.add(result)
+
+    nextKey = pagination?.next_key
+  } while (nextKey)
+
+  return coins
 }
