@@ -1,7 +1,7 @@
 import * as bluebird from 'bluebird'
-import { MsgExecuteContract, TxLog, Coins } from '@terra-money/terra.js'
+import { TxInfo, MsgExecuteContract, TxLog } from '@terra-money/terra.js'
 import { EntityManager } from 'typeorm'
-import { parseContractEvents, MantleTx } from 'lib/terra'
+import { parseContractEvents } from 'lib/terra'
 import { contractService } from 'services'
 import { ContractType } from 'types'
 import { ContractEntity } from 'orm'
@@ -22,7 +22,7 @@ import * as lock from './lock'
 
 export async function parseMirrorMsg(
   manager: EntityManager,
-  txInfo: MantleTx,
+  txInfo: TxInfo,
   msg: MsgExecuteContract,
   index: number,
   log: TxLog
@@ -39,7 +39,7 @@ export async function parseMirrorMsg(
     height: txInfo.height,
     txHash: txInfo.txhash,
     timestamp: txInfo.timestamp,
-    fee: Coins.fromAmino(txInfo.tx.fee.amount).toString(),
+    fee: txInfo.tx.auth_info.fee?.amount.toString(),
     sender: msg.sender,
     coins: msg.coins,
     msg: msg.execute_msg,

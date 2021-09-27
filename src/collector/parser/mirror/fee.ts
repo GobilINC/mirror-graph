@@ -1,15 +1,11 @@
+import { TxInfo } from '@terra-money/terra.js'
 import * as bluebird from 'bluebird'
 import { EntityManager } from 'typeorm'
 import { num } from 'lib/num'
-import { MantleTx } from 'lib/terra'
 import { accountService } from 'services'
 import { BalanceEntity } from 'orm'
 
-export async function parse(
-  manager: EntityManager,
-  txInfo: MantleTx,
-  sender: string
-): Promise<void> {
+export async function parse(manager: EntityManager, txInfo: TxInfo, sender: string): Promise<void> {
   const account = await accountService().get({ address: sender })
 
   // only registered app user
@@ -19,7 +15,7 @@ export async function parse(
   let uusdChange = '0'
 
   // calculate fee
-  const feeCoins = txInfo.tx.fee?.amount
+  const feeCoins = txInfo.tx.auth_info.fee?.amount
   Array.isArray(feeCoins) &&
     (await bluebird.mapSeries(feeCoins, async (coin) => {
       if (coin.denom === 'uusd') {

@@ -1,13 +1,13 @@
 import * as bluebird from 'bluebird'
-import { TxLog, Coins } from '@terra-money/terra.js'
+import { TxInfo, TxLog } from '@terra-money/terra.js'
 import { EntityManager } from 'typeorm'
-import { MantleTx, parseTransfer } from 'lib/terra'
+import { parseTransfer } from 'lib/terra'
 import { num } from 'lib/num'
 import { govService, txService, accountService } from 'services'
 import { TxType } from 'types'
 import { BalanceEntity } from 'orm'
 
-export async function parse(manager: EntityManager, txInfo: MantleTx, log: TxLog): Promise<void> {
+export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog): Promise<void> {
   const transfers = parseTransfer(log.events)
   if (!transfers || transfers.length < 1) return
 
@@ -29,11 +29,11 @@ export async function parse(manager: EntityManager, txInfo: MantleTx, log: TxLog
 
     // only registered account
     if (fromAccount) {
-      const fee = Coins.fromAmino(txInfo.tx.fee.amount).toString()
+      const fee = txInfo.tx.auth_info.fee?.amount.toString()
       let uusdChange = transfer.denom === 'uusd' ? `-${transfer.amount}` : '0'
 
       // calculate fee
-      const feeCoins = txInfo.tx.fee?.amount
+      const feeCoins = txInfo.tx.auth_info.fee?.amount
       Array.isArray(feeCoins) &&
         (await bluebird.mapSeries(feeCoins, async (coin) => {
           if (coin.denom === 'uusd') {

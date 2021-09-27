@@ -1,4 +1,5 @@
 import {
+  TxInfo,
   Msg,
   TxLog,
   MsgSend,
@@ -14,20 +15,12 @@ import { statisticService } from 'services'
 import { DailyStatisticEntity /*, TxHashEntity*/ } from 'orm'
 import { parseTerraMsg } from './terra'
 import { parseMirrorMsg } from './mirror'
-import { MantleTx } from 'lib/terra'
 
-const msgWhitelist = [
-  'wasm/MsgExecuteContract',
-  'bank/MsgSend',
-  'bank/MsgMultiSend',
-  'market/MsgSwap',
-  'market/MsgSwapSend',
-]
 let lastTick = 0
 
 async function parseMsg(
   manager: EntityManager,
-  txInfo: MantleTx,
+  txInfo: TxInfo,
   msg: Msg,
   index: number,
   log: TxLog
@@ -60,21 +53,10 @@ async function txTick(manager: EntityManager, timestamp: number): Promise<void> 
   }
 }
 
-export async function parseTxs(manager: EntityManager, txs: MantleTx[]): Promise<void> {
+export async function parseTxs(manager: EntityManager, txs: TxInfo[]): Promise<void> {
   await bluebird.mapSeries(txs, async (txInfo) => {
-    await bluebird.mapSeries(txInfo.tx.msg, async (msg, index) => {
-      // parse only whitelisted msgs
-      if (!msgWhitelist.includes(msg.type)) {
-        return
-      }
-
-      await parseMsg(
-        manager,
-        txInfo,
-        Msg.fromAmino(msg as Msg.Amino),
-        index,
-        TxLog.fromData(txInfo.logs[index] as TxLog.Data)
-      ).catch((error) => {
+    await bluebird.mapSeries(txInfo.tx.body.messages, async (msg, index) => {
+      await parseMsg(manager, txInfo, msg, index, txInfo.logs[index]).catch((error) => {
         if (error) {
           error['height'] = txInfo.height
           error['txHash'] = txInfo.txhash

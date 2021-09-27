@@ -1,7 +1,7 @@
 import * as bluebird from 'bluebird'
-import { TxLog } from '@terra-money/terra.js'
+import { TxInfo, TxLog } from '@terra-money/terra.js'
 import { EntityManager, Not, IsNull } from 'typeorm'
-import { parseTransfer, MantleTx } from 'lib/terra'
+import { parseTransfer } from 'lib/terra'
 import { num } from 'lib/num'
 import { accountService, contractService, assetService, priceService } from 'services'
 import { BalanceEntity, ContractEntity, AssetPositionsEntity, PriceEntity } from 'orm'
@@ -53,7 +53,7 @@ async function accountTransfer(
   await accountService().addBalance(address, 'uusd', '1', value, datetime, balanceRepo)
 }
 
-export async function parse(manager: EntityManager, txInfo: MantleTx, log: TxLog): Promise<void> {
+export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog): Promise<void> {
   const transfers = parseTransfer(log.events)
   if (!transfers || transfers.length < 1) return
 

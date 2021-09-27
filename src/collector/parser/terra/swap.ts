@@ -1,7 +1,7 @@
 import * as bluebird from 'bluebird'
-import { TxLog, MsgSwap, Coins } from '@terra-money/terra.js'
+import { TxInfo, TxLog, MsgSwap } from '@terra-money/terra.js'
 import { EntityManager } from 'typeorm'
-import { findAttributes, findAttribute, MantleTx } from 'lib/terra'
+import { findAttributes, findAttribute } from 'lib/terra'
 import { splitTokenAmount } from 'lib/utils'
 import { num } from 'lib/num'
 import { govService, txService, accountService } from 'services'
@@ -10,7 +10,7 @@ import { BalanceEntity } from 'orm'
 
 export async function parse(
   manager: EntityManager,
-  txInfo: MantleTx,
+  txInfo: TxInfo,
   msg: MsgSwap,
   log: TxLog
 ): Promise<void> {
@@ -25,7 +25,7 @@ export async function parse(
     txHash: txInfo.txhash,
     datetime,
     govId: govService().get().id,
-    memo: txInfo.tx.memo,
+    memo: txInfo.tx.body.memo,
   }
 
   const attributes = findAttributes(log.events, 'swap')
@@ -40,7 +40,7 @@ export async function parse(
   else if (swapTokenAmount.token === 'uusd') uusdChange = swapTokenAmount.amount
 
   // calculate fee
-  const feeCoins = txInfo.tx.fee?.amount
+  const feeCoins = txInfo.tx.auth_info.fee?.amount
   Array.isArray(feeCoins) &&
     (await bluebird.mapSeries(feeCoins, async (coin) => {
       if (coin.denom === 'uusd') {
@@ -61,7 +61,7 @@ export async function parse(
         swapFee: findAttribute(attributes, 'swap_fee'),
       },
       uusdChange,
-      fee: Coins.fromAmino(txInfo.tx.fee.amount).toString(),
+      fee: txInfo.tx.auth_info.fee?.amount.toString(),
       tags: [offerTokenAmount.token, swapTokenAmount.token],
     },
     manager

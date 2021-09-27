@@ -1,12 +1,12 @@
 import * as bluebird from 'bluebird'
-import { TxLog, Coins } from '@terra-money/terra.js'
+import { TxInfo, TxLog, Coins } from '@terra-money/terra.js'
 import { EntityManager } from 'typeorm'
-import { findAttributes, MantleTx } from 'lib/terra'
+import { findAttributes } from 'lib/terra'
 import { govService, txService, accountService } from 'services'
 import { TxType } from 'types'
 import { BalanceEntity } from 'orm'
 
-export async function parse(manager: EntityManager, txInfo: MantleTx, log: TxLog): Promise<void> {
+export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog): Promise<void> {
   const attributes = findAttributes(log.events, 'transfer')
   if (!attributes) {
     return
@@ -34,7 +34,7 @@ export async function parse(manager: EntityManager, txInfo: MantleTx, log: TxLog
     txHash: txInfo.txhash,
     datetime,
     govId: govService().get().id,
-    memo: txInfo.tx.memo,
+    memo: txInfo.tx.body.memo,
   }
 
   await bluebird.mapSeries(transfers, async (transfer) => {

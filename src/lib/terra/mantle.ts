@@ -1,41 +1,8 @@
+import { TxInfo } from '@terra-money/terra.js'
 import { GraphQLClient, gql } from 'graphql-request'
 import { toSnakeCase, toCamelCase } from 'lib/caseStyles'
 
 export let mantle: GraphQLClient
-export interface MantleTx {
-  height: number
-  txhash: string
-  codespace: string
-  code: number
-  raw_log: string
-  logs: {
-    msg_index: number
-    events: {
-      type: string
-      attributes: {
-        key: string
-        value: string
-      }[]
-    }[]
-  }[]
-  gas_wanted: string
-  gas_used: string
-  tx: {
-    fee: {
-      amount: {
-        amount: string
-        denom: string
-      }[]
-      gas: string
-    }
-    memo?: string
-    msg: {
-      type: string
-      value: unknown
-    }[]
-  }
-  timestamp: string
-}
 
 export function initMantle(URL: string): GraphQLClient {
   mantle = new GraphQLClient(URL, {
@@ -88,7 +55,7 @@ export async function getContractStore<T>(address: string, query: unknown): Prom
   return toCamelCase(response?.wasm?.contractQuery)
 }
 
-export async function getTxs(height: number): Promise<MantleTx[]> {
+export async function getTxs(height: number): Promise<TxInfo[]> {
   const response = await mantle.request(
     gql`
       query ($height: Float!) {
@@ -105,6 +72,7 @@ export async function getTxs(height: number): Promise<MantleTx[]> {
             raw_log
             logs {
               msg_index
+              log
               events {
                 type
                 attributes {
@@ -114,18 +82,21 @@ export async function getTxs(height: number): Promise<MantleTx[]> {
               }
             }
             tx {
-              fee {
-                gas
-                amount {
-                  denom
-                  amount
+              auth_info {
+                fee {
+                  payer
+                  amount {
+                    denom
+                    amount
+                  }
+                }
+                signer_infos {
+                  mode_info
                 }
               }
-              msg {
-                type
-                value
+              body {
+                messages
               }
-              memo
             }
           }
         }
@@ -136,7 +107,9 @@ export async function getTxs(height: number): Promise<MantleTx[]> {
     }
   )
 
-  return response?.tx?.byHeight || []
+  return response?.tx?.byHeight
+    .filter((rawTx) => rawTx.code > 0)
+    .map((rawTx) => TxInfo.fromData(rawTx))
 }
 
 export async function getContractStoreWithHeight<T>(
