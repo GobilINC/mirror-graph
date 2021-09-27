@@ -36,7 +36,7 @@ export class TxWallet extends Wallet {
         return txInfo
       })
       .catch((error) => {
-        if (error?.message?.indexOf('verification failed; verify correct account sequence') > -1) {
+        if (error?.message?.indexOf('account sequence mismatch') > -1) {
           delete this.managedAccountNumber
           delete this.managedSequence
         }
