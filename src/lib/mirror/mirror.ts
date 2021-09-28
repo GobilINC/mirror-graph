@@ -121,7 +121,7 @@ export async function getMintPositions(
   let startAfter = ''
   let finished = false
   const query: {
-    positions: { ownerAddr: string; limit: number; startAfter?: string; orderBy: string }
+    positions: { ownerAddr?: string; limit: number; startAfter?: string; orderBy: string }
   } = {
     positions: { ownerAddr: address, limit: 30, orderBy: 'asc' },
   }
