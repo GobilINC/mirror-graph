@@ -10,8 +10,9 @@ export function registSyncCommands(): void {
   })
 
   program.command('sync-cdps').action(async () => {
-    await syncCdpValues()
-    await syncCdps()
+    const height = await getLatestBlockHeight()
+    await syncCdpValues(height)
+    await syncCdps(height)
   })
 
   program.command('sync-balances').action(async () => {
@@ -19,9 +20,10 @@ export function registSyncCommands(): void {
   })
 
   program.command('sync-all').action(async () => {
-    await syncAssetPositions(await getLatestBlockHeight())
-    await syncCdpValues()
-    await syncCdps()
+    const height = await getLatestBlockHeight()
+    await syncAssetPositions(height)
+    await syncCdpValues(height)
+    await syncCdps(height)
     await syncAccountBalances()
   })
 }

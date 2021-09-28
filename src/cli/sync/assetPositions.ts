@@ -15,7 +15,7 @@ export async function syncAssetPositions(height: number): Promise<void> {
     const { lpToken } = asset
     let isChanged = false
 
-    const pairPool = await getPairPool(asset.pair).catch(() => undefined)
+    const pairPool = await getPairPool(asset.pair, height)
     if (pairPool) {
       const { assetAmount, collateralAmount } = pairPool
       const { pool, uusdPool } = asset.positions
@@ -32,7 +32,7 @@ export async function syncAssetPositions(height: number): Promise<void> {
       }
     }
 
-    const tokenInfo = await getTokenInfo(lpToken).catch(() => undefined)
+    const tokenInfo = await getTokenInfo(lpToken, height)
     if (tokenInfo && asset.positions.lpShares !== tokenInfo.totalSupply) {
       logger.info(
         `sync ${asset.symbol} lpShares. ${asset.positions.lpShares}-${tokenInfo.totalSupply}`
@@ -43,7 +43,7 @@ export async function syncAssetPositions(height: number): Promise<void> {
       isChanged = true
     }
 
-    const tokenBalance = await getTokenBalance(lpToken, stakingContract).catch(() => undefined)
+    const tokenBalance = await getTokenBalance(lpToken, stakingContract, height)
     if (tokenBalance && asset.positions.lpStaked !== tokenBalance) {
       logger.info(`sync ${asset.symbol} lpStaked. ${asset.positions.lpStaked}-${tokenBalance}`)
 

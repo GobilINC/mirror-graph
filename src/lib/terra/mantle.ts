@@ -33,18 +33,23 @@ export async function getLatestBlockHeight(): Promise<number> {
   return response?.tendermint?.blockInfo?.block?.header?.height
 }
 
-export async function getContractStore<T>(address: string, query: unknown): Promise<T> {
+export async function getContractStore<T>(
+  address: string,
+  query: unknown,
+  height?: number
+): Promise<T> {
   const response = await mantle.request(
     gql`
-      query ($address: String!, $query: JSON!) {
+      query ($address: String!, $query: JSON!, $height: Float) {
         wasm {
-          contractQuery(contractAddress: $address, query: $query)
+          contractQuery(contractAddress: $address, query: $query, height: $height)
         }
       }
     `,
     {
       address,
       query: toSnakeCase(query),
+      height: +height,
     }
   )
 
@@ -114,41 +119,4 @@ export async function getTxs(height: number): Promise<TxInfo[]> {
   return response?.tx?.byHeight
     .filter((rawTx) => +rawTx['code'] === 0)
     .map((rawTx) => TxInfo.fromData(rawTx))
-}
-
-export async function getContractStoreWithHeight<T>(
-  address: string,
-  query: unknown
-): Promise<{ height: number; result: T }> {
-  const response = await mantle.request(
-    gql`
-      query ($address: String!, $query: JSON!) {
-        wasm {
-          contractQuery(contractAddress: $address, query: $query)
-        }
-        tendermint {
-          blockInfo {
-            block {
-              header {
-                height
-              }
-            }
-          }
-        }
-      }
-    `,
-    {
-      address,
-      query: toSnakeCase(query),
-    }
-  )
-
-  if (!response?.wasm?.contractQuery) {
-    return undefined
-  }
-
-  return {
-    height: +response?.tendermint?.blockInfo?.block?.header?.height,
-    result: toCamelCase(response?.wasm?.contractQuery),
-  }
 }

@@ -11,14 +11,16 @@ import * as logger from 'lib/logger'
 import { govService, cdpService } from 'services'
 import { CdpEntity } from 'orm'
 
-export async function syncCdpValues(): Promise<void> {
+export async function syncCdpValues(height: number): Promise<void> {
   const { mint, collateralOracle } = govService().get()
   const cdps = await cdpService().getAll({ order: { id: 'ASC' } })
 
   logger.info('sync cdp values')
 
   await bluebird.mapSeries(cdps, async (cdp) => {
-    const position = await getMintPosition(mint, cdp.id).catch(() => undefined)
+    logger.info(`try to sync ${cdp.id}`)
+
+    const position = await getMintPosition(mint, cdp.id, height).catch(() => undefined)
     if (!position) {
       logger.info(`${cdp.id} is not exists!`)
       await getRepository(CdpEntity).remove(cdp)
@@ -34,14 +36,16 @@ export async function syncCdpValues(): Promise<void> {
       logger.info(`${cdp.id}: asset ${cdp.mintAmount}-${position.asset.amount}`)
 
       cdp.mintAmount = position.asset.amount
-      await getRepository(CdpEntity).save(cdp)
+      // await getRepository(CdpEntity).save(cdp)
     }
 
-    const assetConfig = await getMintAssetConfig(mint, cdp.token)
+    const assetConfig = await getMintAssetConfig(mint, cdp.token, height)
 
     const collateralInfo =
       cdp.collateralToken !== 'uusd' &&
-      (await getCollateralAssetInfo(collateralOracle, cdp.collateralToken).catch(() => undefined))
+      (await getCollateralAssetInfo(collateralOracle, cdp.collateralToken, height).catch(
+        () => undefined
+      ))
     const multiplier = collateralInfo?.multiplier || '1'
 
     cdp.minCollateralRatio = num(assetConfig.minCollateralRatio).multipliedBy(multiplier).toString()
@@ -51,9 +55,9 @@ export async function syncCdpValues(): Promise<void> {
   logger.info('completed')
 }
 
-export async function syncCdps(): Promise<void> {
+export async function syncCdps(height: number): Promise<void> {
   const { mint, collateralOracle } = govService().get()
-  const positions = await getMintPositions(mint)
+  const positions = await getMintPositions(mint, undefined, height)
 
   logger.info('sync cdps')
 
@@ -68,10 +72,10 @@ export async function syncCdps(): Promise<void> {
       const collateralToken = collateral.info['token']
         ? collateral.info['token']['contractAddr']
         : collateral.info['nativeToken']['denom']
-      const assetConfig = await getMintAssetConfig(mint, token)
+      const assetConfig = await getMintAssetConfig(mint, token, height)
       const collateralInfo =
         collateralToken !== 'uusd' &&
-        (await getCollateralAssetInfo(collateralOracle, collateralToken).catch((error) => {
+        (await getCollateralAssetInfo(collateralOracle, collateralToken, height).catch((error) => {
           console.log(error)
           return undefined
         }))
