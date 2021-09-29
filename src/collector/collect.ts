@@ -30,8 +30,10 @@ export async function collect(now: number): Promise<void> {
   }
   // for col5 migration
   if (+collectedBlock.height >= +latestHeight) {
-    throw new Error(`collected height: ${collectedBlock?.height}. stop collecting.`)
-    // return
+    if (+latestHeight >= +maxHeight) {
+      throw new Error(`collected height: ${collectedBlock?.height}. stop collecting.`)
+    }
+    return
   }
   const collectedHeight = collectedBlock.height
 
