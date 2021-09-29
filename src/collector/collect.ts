@@ -20,7 +20,7 @@ export async function collect(now: number): Promise<void> {
   })
 
   // for col5 migration
-  if (latestHeight > maxHeight) {
+  if (+latestHeight > +maxHeight) {
     latestHeight = maxHeight
   }
 
@@ -29,11 +29,9 @@ export async function collect(now: number): Promise<void> {
     return
   }
   // for col5 migration
-  if (collectedBlock && +collectedBlock.height >= +latestHeight) {
+  if (+collectedBlock.height >= +latestHeight) {
     throw new Error(`collected height: ${collectedBlock?.height}. stop collecting.`)
-  }
-  if (collectedBlock.height >= latestHeight) {
-    return
+    // return
   }
   const collectedHeight = collectedBlock.height
 
