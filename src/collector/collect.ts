@@ -26,7 +26,7 @@ export async function collect(now: number): Promise<void> {
 
   const collectedBlock = await getCollectedBlock().catch(errorHandler)
   // for col5 migration
-  if (collectedBlock && collectedBlock.height >= latestHeight) {
+  if (collectedBlock && +collectedBlock.height >= +latestHeight) {
     throw new Error(`collected height: ${collectedBlock?.height}. stop collecting.`)
   }
   if (!latestHeight || !collectedBlock || collectedBlock.height >= latestHeight) {
