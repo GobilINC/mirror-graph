@@ -11,12 +11,24 @@ import { getCollectedBlock, updateBlock } from './block'
 import { updateCdps } from './cdp'
 import config from 'config'
 
+const maxHeight = 4724000
+
 export async function collect(now: number): Promise<void> {
-  const latestHeight = await getLatestBlockHeight().catch(async (error) => {
+  let latestHeight = await getLatestBlockHeight().catch(async (error) => {
     errorHandler(error)
     await bluebird.delay(5000)
   })
+
+  // for col5 migration
+  if (latestHeight > maxHeight) {
+    latestHeight = maxHeight
+  }
+
   const collectedBlock = await getCollectedBlock().catch(errorHandler)
+  // for col5 migration
+  if (collectedBlock && collectedBlock.height >= latestHeight) {
+    throw new Error(`collected height: ${collectedBlock?.height}. stop collecting.`)
+  }
   if (!latestHeight || !collectedBlock || collectedBlock.height >= latestHeight) {
     return
   }
@@ -40,9 +52,9 @@ export async function collect(now: number): Promise<void> {
 
   // await syncPairs(lastTx.height).catch(errorHandler)
 
-  const txDate = formatToTimeZone(
-    new Date(lastTx.timestamp), 'YYYY-MM-DD HH:mm:ss', { timeZone: 'Asia/Seoul' }
-  )
+  const txDate = formatToTimeZone(new Date(lastTx.timestamp), 'YYYY-MM-DD HH:mm:ss', {
+    timeZone: 'Asia/Seoul',
+  })
 
   logger.info(
     `collected: ${config.TERRA_CHAIN_ID},`,
