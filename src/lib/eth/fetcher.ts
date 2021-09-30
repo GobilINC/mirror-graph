@@ -35,7 +35,8 @@ const dictWithFn = <T, Item>(obj: Dictionary<Item>, fn: (value: Item) => T) =>
 export function getFetcherContract(): ethers.Contract {
   if (!fetcherContract) {
     fetcherContract = new ethers.Contract(
-      process.env.TERRA_CHAIN_ID.includes('columbus')
+      process.env.TERRA_CHAIN_ID.includes('columbus') ||
+      process.env.TERRA_CHAIN_ID.includes('localterra')
         ? '0xF497145AD68ed6aDFA981c21e5bCdE949d0C3935'
         : '0xc08e82786a62f27382ebE0a518533Fb4Fd91dC81',
       abi,
@@ -109,9 +110,7 @@ export async function queryAssetInfos(): Promise<EthAssetInfos> {
     const { lpStaked: stakedLpShare } = tokenPool
 
     /* apr */
-    const MIRAnnualRewards = String(
-      getMIRAnnualRewards(Date.now(), token === mir)
-    )
+    const MIRAnnualRewards = String(getMIRAnnualRewards(Date.now(), token === mir))
 
     const apr = calcAPR(MIRAnnualRewards, MIRPrice, liquidityValue, stakedLpShare, totalLpShare)
     return { ...item, ...tokenPair, ...tokenPool, apr }
@@ -130,7 +129,11 @@ function getMIRAnnualRewards(now = Date.now(), isMIR = false) {
 }
 
 function calcAPR(
-  MIRAnnualRewards: string, MIRPrice: string, liquidityValue: string, stakedLpShare: string, totalLpShare: string
+  MIRAnnualRewards: string,
+  MIRPrice: string,
+  liquidityValue: string,
+  stakedLpShare: string,
+  totalLpShare: string
 ): string {
   const MIRAnnualRewardsValue = num(MIRAnnualRewards).times(1000000).times(MIRPrice)
   const stakedRatio = num(stakedLpShare).div(totalLpShare)
@@ -138,7 +141,5 @@ function calcAPR(
   const numerator = MIRAnnualRewardsValue
   const denominator = num(liquidityValue).times(stakedRatio)
 
-  return (numerator.gt(0) && denominator.gt(0))
-    ? numerator.div(denominator).toString()
-    : "0"
+  return numerator.gt(0) && denominator.gt(0) ? numerator.div(denominator).toString() : '0'
 }

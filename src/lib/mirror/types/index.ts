@@ -1,3 +1,4 @@
+export * from './asset'
 export * from './pair'
 export * from './oracle'
 export * from './gov'

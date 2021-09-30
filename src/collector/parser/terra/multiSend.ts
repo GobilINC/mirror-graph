@@ -14,7 +14,7 @@ export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog):
 
   const transfers = []
 
-  for (let i = 0; i < attributes.length / 2; i ++) {
+  for (let i = 0; i < attributes.length / 2; i++) {
     const to = attributes[i * 2].value
 
     const coins = Coins.fromString(attributes[i * 3 + 2].value)
@@ -25,8 +25,7 @@ export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog):
     })
   }
 
-  if (!transfers || transfers.length < 1)
-    return
+  if (!transfers || transfers.length < 1) return
 
   const balanceRepo = manager.getRepository(BalanceEntity)
   const datetime = new Date(txInfo.timestamp)
@@ -35,7 +34,7 @@ export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog):
     txHash: txInfo.txhash,
     datetime,
     govId: govService().get().id,
-    memo: txInfo.tx.memo,
+    memo: txInfo.tx.body.memo,
   }
 
   await bluebird.mapSeries(transfers, async (transfer) => {
@@ -46,20 +45,25 @@ export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog):
     const toAccount = await accountService().get({ address: transfer.to })
 
     // only registered account
-    if (!toAccount) 
-      return
+    if (!toAccount) return
 
     const uusdChange = transfer.denom === 'uusd' ? transfer.amount : '0'
 
-    await txService().newTx({
-      ...tx, type: TxType.TERRA_RECEIVE, address: to, data, uusdChange, tags
-    }, manager)
+    await txService().newTx(
+      {
+        ...tx,
+        type: TxType.TERRA_RECEIVE,
+        address: to,
+        data,
+        uusdChange,
+        tags,
+      },
+      manager
+    )
 
     // if uusd token and app user, record balance history
     if (toAccount.isAppUser && uusdChange !== '0') {
-      await accountService().addBalance(
-        to, 'uusd', '1', uusdChange, datetime, balanceRepo
-      )
+      await accountService().addBalance(to, 'uusd', '1', uusdChange, datetime, balanceRepo)
     }
   })
 }

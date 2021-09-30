@@ -1,6 +1,5 @@
-import { TxInfo, Msg } from '@terra-money/terra.js'
+import { TxInfo } from '@terra-money/terra.js'
 import { GraphQLClient, gql } from 'graphql-request'
-import { pick } from 'lodash'
 import { toSnakeCase, toCamelCase } from 'lib/caseStyles'
 
 export let mantle: GraphQLClient
@@ -15,156 +14,109 @@ export function initMantle(URL: string): GraphQLClient {
 }
 
 export async function getLatestBlockHeight(): Promise<number> {
-  const result = await mantle.request(
-    gql`query {
-      LastSyncedHeight
-    }`
-  )
-
-  return result?.LastSyncedHeight
-}
-
-export async function getContractStore<T>(address: string, query: unknown): Promise<T> {
   const response = await mantle.request(
-    gql`query($address: String!, $query: String!) {
-      WasmContractsContractAddressStore(ContractAddress: $address, QueryMsg: $query) {
-        Height
-        Result
-      }
-    }`,
-    {
-      address,
-      query: JSON.stringify(toSnakeCase(query))
-    }
-  )
-
-  if (!response?.WasmContractsContractAddressStore?.Result) {
-    return undefined
-  }
-
-  return toCamelCase(JSON.parse(response.WasmContractsContractAddressStore.Result))
-}
-
-export async function getTxs(start: number, end: number, limit = 100): Promise<TxInfo[]> {
-  const response = await mantle.request(
-    gql`query($range: [Int!]!, $limit: Int) {
-      Blocks(Height_range: $range, Limit: $limit, Order: ASC) {
-        Txs {
-          Height
-          TxHash
-          Success
-          Code
-          GasWanted
-          GasUsed
-          Timestamp
-          TimestampUTC
-
-          RawLog
-          Logs {
-            MsgIndex
-            Log
-            Events {
-              Type
-              Attributes {
-                Key
-                Value
+    gql`
+      query {
+        tendermint {
+          blockInfo {
+            block {
+              header {
+                height
               }
-            }
-          }
-          Events {
-            Type
-            Attributes {
-              Key
-              Value
-            }
-          }
-          Tx {
-            Fee {
-              Gas
-              Amount {
-                Denom
-                Amount
-              }
-            }
-            Msg {
-              Type
-              Value
-            }
-            Memo
-            Signatures {
-              PubKey {
-                Type
-                Value
-              }
-              Signature
             }
           }
         }
       }
-    }`,
-    {
-      range: [start, end],
-      limit
-    }
+    `
   )
 
-  const txs: TxInfo[] = []
-
-  response?.Blocks?.map((Block) => {
-    Block.Txs?.filter(rawTx => rawTx.Success).map((rawTx) => {
-      const infos = toSnakeCase(pick(
-        rawTx,
-        ['Height', 'GasWanted', 'GasUsed', 'RawLog', 'Logs', 'Events']
-      ))
-      infos.timestamp = new Date((+rawTx.TimestampUTC) * 1000).toUTCString()
-
-      const txValue = toSnakeCase(pick(rawTx.Tx, ['Fee', 'Signatures', 'Memo']))
-      const tx = {
-        type: 'core/StdTx',
-        value: {
-          ...txValue,
-          msg: rawTx.Tx.Msg
-            .filter((msg) => [
-              'wasm/MsgExecuteContract',
-              'bank/MsgSend',
-              'bank/MsgMultiSend',
-              'market/MsgSwap',
-              'market/MsgSwapSend'
-            ].includes(msg.Type))
-            .map((msg) => {
-              return Msg.fromData({ type: msg.Type, value: JSON.parse(msg.Value) } as Msg.Data)?.toData()
-            })
-            .filter(Boolean)
-        }
-      }
-
-      txs.push(TxInfo.fromData({ ...infos, txhash: rawTx.TxHash, tx }))
-    })
-  })
-
-  return txs
+  return response?.tendermint?.blockInfo?.block?.header?.height
 }
 
-export async function getContractStoreWithHeight<T>(address: string, query: unknown): Promise<{ height: number; result: T }> {
+export async function getContractStore<T>(
+  address: string,
+  query: unknown,
+  height?: number
+): Promise<T> {
   const response = await mantle.request(
-    gql`query($address: String!, $query: String!) {
-      WasmContractsContractAddressStore(ContractAddress: $address, QueryMsg: $query) {
-        Height
-        Result
+    gql`
+      query ($address: String!, $query: JSON!, $height: Float) {
+        wasm {
+          contractQuery(contractAddress: $address, query: $query, height: $height)
+        }
       }
-    }`,
+    `,
     {
       address,
-      query: JSON.stringify(toSnakeCase(query))
+      query: toSnakeCase(query),
+      height: +height,
     }
   )
 
-  if (!response?.WasmContractsContractAddressStore?.Result) {
+  if (!response?.wasm?.contractQuery) {
     return undefined
   }
 
-  return {
-    height: +response.WasmContractsContractAddressStore.Height,
-    result: toCamelCase(JSON.parse(response.WasmContractsContractAddressStore.Result))
-  }
+  return toCamelCase(response?.wasm?.contractQuery)
+}
+
+export async function getTxs(height: number): Promise<TxInfo[]> {
+  const response = await mantle.request(
+    gql`
+      query ($height: Float!) {
+        tx {
+          byHeight(height: $height) {
+            height
+            txhash
+
+            code
+            gas_wanted
+            gas_used
+            timestamp
+
+            raw_log
+            logs {
+              msg_index
+              log
+              events {
+                type
+                attributes {
+                  key
+                  value
+                }
+              }
+            }
+            tx {
+              auth_info {
+                fee {
+                  payer
+                  gas_limit
+                  granter
+                  amount {
+                    denom
+                    amount
+                  }
+                }
+                signer_infos {
+                  mode_info
+                  public_key
+                  sequence
+                }
+              }
+              body {
+                messages
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      height,
+    }
+  )
+
+  return response?.tx?.byHeight
+    .filter((rawTx) => +rawTx['code'] === 0)
+    .map((rawTx) => TxInfo.fromData(rawTx))
 }
