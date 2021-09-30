@@ -17,7 +17,7 @@ export async function parse(manager: EntityManager, txInfo: TxInfo, log: TxLog):
   for (let i = 0; i < attributes.length / 2; i++) {
     const to = attributes[i * 2].value
 
-    const coins = Coins.fromString(attributes[i * 3 + 2].value)
+    const coins = Coins.fromString(attributes[i * 2 + 1].value)
     coins.map((coin) => {
       const { denom, amount } = coin.toData()
 
