@@ -1,9 +1,10 @@
 import { getManager, EntityManager } from 'typeorm'
 import * as bluebird from 'bluebird'
+import { Updater } from 'lib/Updater'
 import { assetService, oracleService, collateralService } from 'services'
 import { CdpEntity } from 'orm'
 
-let lastUpdatedAll = 0
+const updater = new Updater(60000 * 5) // 5mins
 
 async function removeClosedCdps(manager: EntityManager): Promise<void> {
   await manager
@@ -36,7 +37,9 @@ async function updateCdpRatio(manager: EntityManager, maxDiffRatio?: number): Pr
         .andWhere('mint_amount > 0')
 
       if (maxDiffRatio) {
-        qb = qb.andWhere('collateral_ratio - min_collateral_ratio < :maxDiffRatio', { maxDiffRatio })
+        qb = qb.andWhere('collateral_ratio - min_collateral_ratio < :maxDiffRatio', {
+          maxDiffRatio,
+        })
       }
 
       await qb.execute()
@@ -45,7 +48,7 @@ async function updateCdpRatio(manager: EntityManager, maxDiffRatio?: number): Pr
 
   // update collateral value
   await bluebird.mapSeries(
-    [...assets, ...collateralAssets].filter((asset) => asset.symbol !== 'uusd'),    
+    [...assets, ...collateralAssets].filter((asset) => asset.symbol !== 'uusd'),
     async (asset) => {
       const { token } = asset
       const collateralPrice = await collateralService().getPrice(token)
@@ -61,7 +64,9 @@ async function updateCdpRatio(manager: EntityManager, maxDiffRatio?: number): Pr
         .andWhere('collateral_amount > 0 AND mint_value > 0')
 
       if (maxDiffRatio) {
-        qb = qb.andWhere('collateral_ratio - min_collateral_ratio < :maxDiffRatio', { maxDiffRatio })
+        qb = qb.andWhere('collateral_ratio - min_collateral_ratio < :maxDiffRatio', {
+          maxDiffRatio,
+        })
       }
 
       await qb.execute()
@@ -86,13 +91,12 @@ export async function updateCdps(): Promise<void> {
   const now = Date.now()
 
   await getManager().transaction(async (manager: EntityManager) => {
-    await removeClosedCdps(manager)
+    if (updater.needUpdate(now)) {
+      // remove closed cdps
+      await removeClosedCdps(manager)
 
-    if (now - lastUpdatedAll > 60000) {
-      // update all cdp every 1min
+      // update all cdps every 5mins
       await updateCdpRatio(manager)
-
-      lastUpdatedAll = now
     } else {
       // close to liquidation(< 15%) cdps update every block
       await updateCdpRatio(manager, 0.15)
